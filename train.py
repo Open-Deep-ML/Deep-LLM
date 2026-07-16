@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 1.
+"""The crowd-trained tiny LLM — generation 2.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -160,18 +160,39 @@ class Attention(nn.Module):
         y = y.transpose(1, 2).contiguous().view(B, T, C)
         return self.proj(y)
 
-# --- slot: ffn (v0, by Deep-ML) ---
+# --- slot: ffn (v2, by Nick Grebe) ---
 class FFN(nn.Module):
-    """Position-wise feed-forward, 4x expansion + GELU (vanilla nanoGPT)."""
+    """Parameter-efficient SwiGLU feed-forward network."""
 
     def __init__(self, cfg):
         super().__init__()
-        self.up = nn.Linear(cfg.n_embd, 4 * cfg.n_embd)
-        self.down = nn.Linear(4 * cfg.n_embd, cfg.n_embd)
+        #Approximately matches the parameter count of a standard 4x FFN:
+        hidden_dim = int((8 / 3) * cfg.n_embd)
+
+        # Hardware-friendly rounding.
+        hidden_dim = 64 * ((hidden_dim + 63) // 64)
+
+        self.gate = nn.Linear(
+            cfg.n_embd,
+            hidden_dim,
+            bias=False,
+        )
+        self.up = nn.Linear(
+            cfg.n_embd,
+            hidden_dim,
+            bias=False,
+        )
+        self.down = nn.Linear(
+            hidden_dim,
+            cfg.n_embd,
+            bias=False,
+        )
+
         self.drop = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
-        return self.drop(self.down(F.gelu(self.up(x))))
+        x = F.silu(self.gate(x)) * self.up(x)
+        return self.drop(self.down(x))
 
 # --- slot: norm (v0, by Deep-ML) ---
 class Norm(nn.Module):
