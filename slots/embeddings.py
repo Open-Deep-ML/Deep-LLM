@@ -1,4 +1,4 @@
-# Slot: embeddings (v0, by Deep-ML)
+# Slot: embeddings (v4, by Shubh Goyal)
 
 class Embeddings(nn.Module):
     """Learned token + positional embeddings (vanilla nanoGPT)."""
@@ -6,7 +6,7 @@ class Embeddings(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.tok = nn.Embedding(cfg.vocab_size, cfg.n_embd)
-        self.pos = nn.Embedding(cfg.block_size, cfg.n_embd)
+        # self.pos = nn.Embedding(cfg.block_size, cfg.n_embd)
         self.drop = nn.Dropout(cfg.dropout)
         # Position ids live in a buffer, NOT torch.arange(..., device=...) in
         # forward: tracing would bake the device as a constant and the frozen
@@ -15,4 +15,4 @@ class Embeddings(nn.Module):
         self.register_buffer("pos_ids", torch.arange(cfg.block_size))
 
     def forward(self, idx):
-        return self.drop(self.tok(idx) + self.pos(self.pos_ids[: idx.size(1)]))
+        return self.drop(self.tok(idx))

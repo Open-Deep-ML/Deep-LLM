@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 3.
+"""The crowd-trained tiny LLM — generation 4.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -116,14 +116,14 @@ def build_tokenizer(train_bytes):
         arr = np.delete(arr, keep + 1)
     return merges
 
-# --- slot: embeddings (v0, by Deep-ML) ---
+# --- slot: embeddings (v4, by Shubh Goyal) ---
 class Embeddings(nn.Module):
     """Learned token + positional embeddings (vanilla nanoGPT)."""
 
     def __init__(self, cfg):
         super().__init__()
         self.tok = nn.Embedding(cfg.vocab_size, cfg.n_embd)
-        self.pos = nn.Embedding(cfg.block_size, cfg.n_embd)
+        # self.pos = nn.Embedding(cfg.block_size, cfg.n_embd)
         self.drop = nn.Dropout(cfg.dropout)
         # Position ids live in a buffer, NOT torch.arange(..., device=...) in
         # forward: tracing would bake the device as a constant and the frozen
@@ -132,26 +132,50 @@ class Embeddings(nn.Module):
         self.register_buffer("pos_ids", torch.arange(cfg.block_size))
 
     def forward(self, idx):
-        return self.drop(self.tok(idx) + self.pos(self.pos_ids[: idx.size(1)]))
+        return self.drop(self.tok(idx))
 
-# --- slot: attention (v0, by Deep-ML) ---
+# --- slot: attention (v4, by Shubh Goyal) ---
 class Attention(nn.Module):
-    """Multi-head causal self-attention (vanilla nanoGPT)."""
+    """Multi-head causal self-attention with Rotary Positional Embeddings (RoPE)."""
 
     def __init__(self, cfg):
         super().__init__()
         assert cfg.n_embd % cfg.n_head == 0
         self.n_head = cfg.n_head
+        self.head_dim = cfg.n_embd // cfg.n_head
         self.qkv = nn.Linear(cfg.n_embd, 3 * cfg.n_embd, bias=False)
         self.proj = nn.Linear(cfg.n_embd, cfg.n_embd, bias=False)
         self.attn_dropout = cfg.dropout
 
+        # Precompute RoPE frequencies as a buffer (portable across devices,
+        # same reasoning as pos_ids: never build device-pinned tensors in
+        # forward()).
+        inv_freq = 1.0 / (10000 ** (torch.arange(0, self.head_dim, 2).float() / self.head_dim))
+        t = torch.arange(cfg.block_size).float()
+        freqs = torch.outer(t, inv_freq)  # (block_size, head_dim/2)
+        self.register_buffer("cos", freqs.cos(), persistent=False)
+        self.register_buffer("sin", freqs.sin(), persistent=False)
+
+    def _apply_rope(self, x, T):
+        # x: (B, n_head, T, head_dim)
+        cos = self.cos[:T].unsqueeze(0).unsqueeze(0)  # (1,1,T,head_dim/2)
+        sin = self.sin[:T].unsqueeze(0).unsqueeze(0)
+        x1, x2 = x[..., 0::2], x[..., 1::2]
+        rot_x1 = x1 * cos - x2 * sin
+        rot_x2 = x1 * sin + x2 * cos
+        out = torch.stack([rot_x1, rot_x2], dim=-1).flatten(-2)
+        return out
+
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.qkv(x).split(C, dim=2)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+        q = q.view(B, T, self.n_head, self.head_dim).transpose(1, 2)
+        k = k.view(B, T, self.n_head, self.head_dim).transpose(1, 2)
+        v = v.view(B, T, self.n_head, self.head_dim).transpose(1, 2)
+
+        q = self._apply_rope(q, T)
+        k = self._apply_rope(k, T)
+
         y = F.scaled_dot_product_attention(
             q, k, v,
             is_causal=True,
@@ -194,16 +218,19 @@ class FFN(nn.Module):
         x = F.silu(self.gate(x)) * self.up(x)
         return self.drop(self.down(x))
 
-# --- slot: norm (v0, by Deep-ML) ---
+# --- slot: norm (v4, by Shubh Goyal) ---
 class Norm(nn.Module):
-    """Standard LayerNorm."""
+    """RMSNorm — cheaper than LayerNorm (no mean-subtraction, no bias),
+    and typically gives slightly better loss at this scale."""
 
-    def __init__(self, dim):
+    def __init__(self, dim, eps=1e-5):
         super().__init__()
-        self.ln = nn.LayerNorm(dim)
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
 
     def forward(self, x):
-        return self.ln(x)
+        norm = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        return norm * self.weight
 
 # --- slot: architecture (v0, by Deep-ML) ---
 class Block(nn.Module):
