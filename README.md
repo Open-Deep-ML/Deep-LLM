@@ -17,9 +17,9 @@ a commit. The git history *is* the research log.
 
 | | |
 |---|---|
-| **Generation** | 5 |
-| **bits per byte** | **1.8609** (hidden test set, lower is better) |
-| **Experiments tried** | 19 (5 merged) |
+| **Generation** | 6 |
+| **bits per byte** | **1.8456** (hidden test set, lower is better) |
+| **Experiments tried** | 20 (6 merged) |
 | **Training budget** | 2000 steps / 240s on a T4, ≤15M params |
 | **Data** | FineWeb-Edu (educational web text), scored in bits per byte |
 
@@ -38,7 +38,7 @@ and reports held-out bits per byte.
 
 | Slot | Version | Author |
 |---|---|---|
-| `config` | v5 | Giuseppe Frigeni |
+| `config` | v6 | Giuseppe Frigeni |
 | `tokenizer` | v1 | moe chabot |
 | `embeddings` | v4 | Shubh Goyal |
 | `attention` | v4 | Shubh Goyal |

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 5.
+"""The crowd-trained tiny LLM — generation 6.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,7 +65,7 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v5, by Giuseppe Frigeni) ---
+# --- slot: config (v6, by Giuseppe Frigeni) ---
 def configure_model(cfg):
     """The model's shape and training hyperparameters (vanilla nanoGPT).
 
@@ -76,9 +76,9 @@ def configure_model(cfg):
     cfg.n_layer = 6
     cfg.n_head = 6
     cfg.n_embd = 384
-    cfg.block_size = 96      # context length (max 1024)
+    cfg.block_size = 64      # context length (max 1024)
     cfg.dropout = 0.1
-    cfg.batch_size = 96
+    cfg.batch_size = 128
     cfg.learning_rate = 1e-3
     return cfg
 
