@@ -6,3 +6,4 @@ Every merged experiment, oldest first. Generation 0 is the seed.
 - **gen 2** — Nick Grebe improved `ffn`: bits per byte 2.5159 → 2.4878 (−0.0280)
 - **gen 3** — Giuseppe Frigeni improved `config`: bits per byte 2.4878 → 2.1246 (−0.3632)
 - **gen 4** — Shubh Goyal improved `embeddings + attention + norm`: bits per byte 2.1246 → 1.9838 (−0.1409)
+- **gen 5** — Giuseppe Frigeni improved `config + optimizer`: bits per byte 1.9838 → 1.8609 (−0.1228)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 4.
+"""The crowd-trained tiny LLM — generation 5.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,7 +65,7 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v3, by Giuseppe Frigeni) ---
+# --- slot: config (v5, by Giuseppe Frigeni) ---
 def configure_model(cfg):
     """The model's shape and training hyperparameters (vanilla nanoGPT).
 
@@ -76,10 +76,10 @@ def configure_model(cfg):
     cfg.n_layer = 6
     cfg.n_head = 6
     cfg.n_embd = 384
-    cfg.block_size = 128      # context length (max 1024)
+    cfg.block_size = 96      # context length (max 1024)
     cfg.dropout = 0.1
-    cfg.batch_size = 64
-    cfg.learning_rate = 3e-4
+    cfg.batch_size = 96
+    cfg.learning_rate = 1e-3
     return cfg
 
 # --- slot: tokenizer (v1, by moe chabot) ---
@@ -269,14 +269,14 @@ def build_model(cfg):
     """The topology is yours: rewire blocks, tie weights, go parallel."""
     return GPT(cfg)
 
-# --- slot: optimizer (v0, by Deep-ML) ---
+# --- slot: optimizer (v5, by Giuseppe Frigeni) ---
 def configure_optimizer(model, cfg):
     """AdamW with weight decay on matrices only (vanilla nanoGPT)."""
     decay = [p for p in model.parameters() if p.requires_grad and p.dim() >= 2]
     no_decay = [p for p in model.parameters() if p.requires_grad and p.dim() < 2]
     return torch.optim.AdamW(
         [
-            {"params": decay, "weight_decay": 0.1},
+            {"params": decay, "weight_decay": 0.03},
             {"params": no_decay, "weight_decay": 0.0},
         ],
         lr=cfg.learning_rate,
