@@ -1,34 +1,113 @@
-# Slot: tokenizer (v1, by moe chabot)
+# Slot: tokenizer (v7, by anonymous)
 
 def build_tokenizer(train_bytes):
-    """Classic BPE: repeatedly merge the most frequent adjacent pair.
+    """Classic BPE trained on a distributed 1 MB corpus sample.
 
-    Learns on a 1MB sample so it stays fast inside the wall clock; the
-    trusted encoder applies the merges to the full corpus afterwards.
-    512 merges -> vocab 768, well under the 2048 cap.
+    This keeps the baseline's 512 merges and classic pair-frequency
+    objective, but samples throughout the corpus instead of using only
+    its first megabyte.
+
+    Artificial boundaries between sampled chunks are excluded from both
+    pair counting and merge application.
     """
+    import numpy as np
+
     NUM_MERGES = 512
-    arr = np.frombuffer(train_bytes[:1_000_000], dtype=np.uint8).astype(np.int32)
+    SAMPLE_SIZE = 1_000_000
+    NUM_CHUNKS = 64
+
+    corpus_size = len(train_bytes)
+
+    if corpus_size < 2:
+        return []
+
+    if corpus_size <= SAMPLE_SIZE:
+        arr = np.frombuffer(
+            train_bytes,
+            dtype=np.uint8,
+        ).astype(np.int32)
+
+        segments = np.zeros(len(arr), dtype=np.uint8)
+
+    else:
+        chunk_size = SAMPLE_SIZE // NUM_CHUNKS
+
+        bounds = np.linspace(0, corpus_size, NUM_CHUNKS + 1, dtype=np.int64)
+
+        chunks = []
+        segment_chunks = []
+
+        for segment_id, (lo, hi) in enumerate(zip(bounds[:-1], bounds[1:])):
+            start = int(lo + (hi - lo - chunk_size) // 2)
+
+            chunk = np.frombuffer(
+                train_bytes,
+                dtype=np.uint8,
+                count=chunk_size,
+                offset=start,
+            ).astype(np.int32)
+
+            chunks.append(chunk)
+
+            segment_chunks.append(
+                np.full(
+                    chunk_size,
+                    segment_id,
+                    dtype=np.uint8,
+                )
+            )
+
+        arr = np.concatenate(chunks)
+        segments = np.concatenate(segment_chunks)
 
     merges = []
+
     for i in range(NUM_MERGES):
-        # Count adjacent pairs (encode each pair as one int; 4096 > vocab cap).
-        pairs = arr[:-1].astype(np.int64) * 4096 + arr[1:].astype(np.int64)
-        uniq, counts = np.unique(pairs, return_counts=True)
-        top = counts.argmax()
-        if counts[top] < 2:
+        if len(arr) < 2:
             break
-        a, b = int(uniq[top] // 4096), int(uniq[top] % 4096)
+
+        vocab_size = 256 + i
+        same_segment = (segments[:-1] == segments[1:])
+
+        if not np.any(same_segment):
+            break
+
+        pair_ids = arr[:-1] * vocab_size + arr[1:]
+
+        boundary_id = vocab_size ** 2
+        pair_ids[~same_segment] = boundary_id
+
+        counts = np.bincount(pair_ids, minlength=boundary_id + 1)
+        counts[boundary_id] = 0
+
+        best_pair_id = int(counts.argmax())
+        best_pair_count = int(counts[best_pair_id])
+
+        if best_pair_count < 2:
+            break
+
+        a, b = divmod(best_pair_id, vocab_size)
+
+        positions = np.flatnonzero(same_segment & (arr[:-1] == a) & (arr[1:] == b))
+
+        if a == b and len(positions) > 1:
+            new_run = np.r_[True, np.diff(positions) > 1]
+
+            run_starts = np.maximum.accumulate(
+                np.where(new_run, np.arange(len(positions)), 0)
+            )
+
+            offsets = np.arange(len(positions)) - run_starts
+            positions = positions[offsets % 2 == 0]
+
         merges.append((a, b))
 
-        # Apply the merge greedily left-to-right, same as the trusted encoder.
-        idx = np.flatnonzero((arr[:-1] == a) & (arr[1:] == b))
-        keep, last = [], -2
-        for j in idx:
-            if j > last + 1:
-                keep.append(j)
-                last = j
-        keep = np.asarray(keep, dtype=np.int64)
-        arr[keep] = 256 + i
-        arr = np.delete(arr, keep + 1)
+        arr[positions] = 256 + i
+
+        keep = np.ones(len(arr), dtype=bool)
+        keep[positions + 1] = False
+
+        arr = arr[keep]
+        segments = segments[keep]
+
     return merges

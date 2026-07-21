@@ -1,26 +1,19 @@
-# Slot: ffn (v2, by Nick Grebe)
+# Slot: ffn (v7, by anonymous)
 
 class FFN(nn.Module):
-    """Parameter-efficient SwiGLU feed-forward network."""
+    """Parameter-efficient SwiGLU with a fused gate/up projection."""
 
     def __init__(self, cfg):
         super().__init__()
-        #Approximately matches the parameter count of a standard 4x FFN:
         hidden_dim = int((8 / 3) * cfg.n_embd)
-
-        # Hardware-friendly rounding.
         hidden_dim = 64 * ((hidden_dim + 63) // 64)
 
-        self.gate = nn.Linear(
+        self.gate_up = nn.Linear(
             cfg.n_embd,
-            hidden_dim,
+            2 * hidden_dim,
             bias=False,
         )
-        self.up = nn.Linear(
-            cfg.n_embd,
-            hidden_dim,
-            bias=False,
-        )
+
         self.down = nn.Linear(
             hidden_dim,
             cfg.n_embd,
@@ -30,5 +23,6 @@ class FFN(nn.Module):
         self.drop = nn.Dropout(cfg.dropout)
 
     def forward(self, x):
-        x = F.silu(self.gate(x)) * self.up(x)
+        gate, up = self.gate_up(x).chunk(2, dim=-1)
+        x = F.silu(gate) * up
         return self.drop(self.down(x))

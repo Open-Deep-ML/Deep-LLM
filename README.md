@@ -17,9 +17,9 @@ a commit. The git history *is* the research log.
 
 | | |
 |---|---|
-| **Generation** | 6 |
-| **bits per byte** | **1.8456** (hidden test set, lower is better) |
-| **Experiments tried** | 20 (6 merged) |
+| **Generation** | 7 |
+| **bits per byte** | **1.8284** (hidden test set, lower is better) |
+| **Experiments tried** | 28 (7 merged) |
 | **Training budget** | 2000 steps / 240s on a T4, ≤15M params |
 | **Data** | FineWeb-Edu (educational web text), scored in bits per byte |
 
@@ -38,14 +38,14 @@ and reports held-out bits per byte.
 
 | Slot | Version | Author |
 |---|---|---|
-| `config` | v6 | Giuseppe Frigeni |
-| `tokenizer` | v1 | moe chabot |
+| `config` | v7 | anonymous |
+| `tokenizer` | v7 | anonymous |
 | `embeddings` | v4 | Shubh Goyal |
 | `attention` | v4 | Shubh Goyal |
-| `ffn` | v2 | Nick Grebe |
+| `ffn` | v7 | anonymous |
 | `norm` | v4 | Shubh Goyal |
 | `architecture` | v0 | Deep-ML |
-| `optimizer` | v5 | Giuseppe Frigeni |
+| `optimizer` | v7 | anonymous |
 | `lr_schedule` | v0 | Deep-ML |
 | `train_step` | v0 | Deep-ML |
 

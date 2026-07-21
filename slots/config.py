@@ -1,4 +1,4 @@
-# Slot: config (v6, by Giuseppe Frigeni)
+# Slot: config (v7, by anonymous)
 
 def configure_model(cfg):
     """The model's shape and training hyperparameters (vanilla nanoGPT).
@@ -10,8 +10,8 @@ def configure_model(cfg):
     cfg.n_layer = 6
     cfg.n_head = 6
     cfg.n_embd = 384
-    cfg.block_size = 64      # context length (max 1024)
-    cfg.dropout = 0.1
-    cfg.batch_size = 128
+    cfg.block_size = 128      # context length (max 1024)
+    cfg.dropout = 0.0
+    cfg.batch_size = 64
     cfg.learning_rate = 1e-3
     return cfg
