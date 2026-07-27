@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 7.
+"""The crowd-trained tiny LLM — generation 8.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -305,7 +305,7 @@ class Norm(nn.Module):
         norm = x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
         return norm * self.weight
 
-# --- slot: architecture (v0, by Deep-ML) ---
+# --- slot: architecture (v8, by Nick Grebe) ---
 class Block(nn.Module):
     """Pre-norm transformer block (vanilla nanoGPT wiring)."""
 
@@ -327,14 +327,61 @@ class GPT(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.embeddings = Embeddings(cfg)
-        self.blocks = nn.ModuleList([Block(cfg) for _ in range(cfg.n_layer)])
+        self.blocks = nn.ModuleList(
+            [Block(cfg) for _ in range(cfg.n_layer)]
+        )
         self.norm_f = Norm(cfg.n_embd)
-        self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size, bias=False)
+
+        self.lm_head = nn.Linear(
+            cfg.n_embd,
+            cfg.vocab_size,
+            bias=False,
+        )
+
+        self.apply(self._init_weights)
+
+        residual_std = 0.02 / math.sqrt(
+            2.0 * cfg.n_layer
+        )
+
+        for block in self.blocks:
+            nn.init.normal_(
+                block.attn.proj.weight,
+                mean=0.0,
+                std=residual_std,
+            )
+
+            nn.init.normal_(
+                block.ffn.down.weight,
+                mean=0.0,
+                std=residual_std,
+            )
+
+        self.lm_head.weight = self.embeddings.tok.weight
+
+    @staticmethod
+    def _init_weights(module):
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
+
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
 
     def forward(self, idx):
         x = self.embeddings(idx)
-        for b in self.blocks:
-            x = b(x)
+        for block in self.blocks:
+            x = block(x)
         return self.lm_head(self.norm_f(x))
 
 
@@ -342,36 +389,61 @@ def build_model(cfg):
     """The topology is yours: rewire blocks, tie weights, go parallel."""
     return GPT(cfg)
 
-# --- slot: optimizer (v7, by anonymous) ---
+# --- slot: optimizer (v8, by Nick Grebe) ---
 def configure_optimizer(model, cfg):
-    """Fused AdamW with weight decay on matrices only."""
-    decay = [p for p in model.parameters() if p.requires_grad and p.dim() >= 2]
+    """AdamW with weight decay applied only to matrix-shaped parameters."""
+
+    decay = [p for p in model.parameters()
+        if p.requires_grad and p.dim() >= 2
+    ]
+
     no_decay = [p for p in model.parameters() if p.requires_grad and p.dim() < 2]
+
+    optimizer_args = {
+        "lr": cfg.learning_rate,
+        "betas": (0.9, 0.95),
+        "eps": 1e-8,
+    }
+
+    if next(model.parameters()).device.type == "cuda":
+        optimizer_args["fused"] = True
 
     return torch.optim.AdamW(
         [
             {
                 "params": decay,
-                "weight_decay": 0.03,
+                "weight_decay": 0.05,
             },
             {
                 "params": no_decay,
                 "weight_decay": 0.0,
             },
         ],
-        lr=cfg.learning_rate,
-        betas=(0.9, 0.95),
-        fused=True,
+        **optimizer_args,
     )
 
-# --- slot: lr_schedule (v0, by Deep-ML) ---
+# --- slot: lr_schedule (v8, by Nick Grebe) ---
 def get_lr(step, cfg):
-    """Linear warmup then cosine decay to 10% of base lr."""
-    warmup = 100
-    if step < warmup:
-        return cfg.learning_rate * (step + 1) / warmup
-    progress = (step - warmup) / max(1, cfg.max_steps - warmup)
-    return cfg.learning_rate * (0.1 + 0.9 * 0.5 * (1.0 + math.cos(math.pi * progress)))
+    """3% linear warmup, then cosine decay to 10% of the base learning rate."""
+    max_steps = max(1,int(cfg.max_steps),)
+
+    warmup_steps = max(1,
+        min(200,
+            int(0.03 * max_steps),
+        ),
+    )
+
+    if step < warmup_steps:
+        return (cfg.learning_rate* (step + 1)/ warmup_steps
+        )
+
+    progress = (step - warmup_steps) / max(1,max_steps - warmup_steps - 1,)
+
+    progress = min(1.0,max(0.0, progress),)
+
+    cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+
+    return cfg.learning_rate * (0.1 + 0.9 * cosine)
 
 # --- slot: train_step (v0, by Deep-ML) ---
 def train_step(model, batch, optimizer, step):

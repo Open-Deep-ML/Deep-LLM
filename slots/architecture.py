@@ -1,4 +1,4 @@
-# Slot: architecture (v0, by Deep-ML)
+# Slot: architecture (v8, by Nick Grebe)
 
 class Block(nn.Module):
     """Pre-norm transformer block (vanilla nanoGPT wiring)."""
@@ -21,14 +21,61 @@ class GPT(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         self.embeddings = Embeddings(cfg)
-        self.blocks = nn.ModuleList([Block(cfg) for _ in range(cfg.n_layer)])
+        self.blocks = nn.ModuleList(
+            [Block(cfg) for _ in range(cfg.n_layer)]
+        )
         self.norm_f = Norm(cfg.n_embd)
-        self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size, bias=False)
+
+        self.lm_head = nn.Linear(
+            cfg.n_embd,
+            cfg.vocab_size,
+            bias=False,
+        )
+
+        self.apply(self._init_weights)
+
+        residual_std = 0.02 / math.sqrt(
+            2.0 * cfg.n_layer
+        )
+
+        for block in self.blocks:
+            nn.init.normal_(
+                block.attn.proj.weight,
+                mean=0.0,
+                std=residual_std,
+            )
+
+            nn.init.normal_(
+                block.ffn.down.weight,
+                mean=0.0,
+                std=residual_std,
+            )
+
+        self.lm_head.weight = self.embeddings.tok.weight
+
+    @staticmethod
+    def _init_weights(module):
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
+
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
 
     def forward(self, idx):
         x = self.embeddings(idx)
-        for b in self.blocks:
-            x = b(x)
+        for block in self.blocks:
+            x = block(x)
         return self.lm_head(self.norm_f(x))
 
 
