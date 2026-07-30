@@ -10,3 +10,4 @@ Every merged experiment, oldest first. Generation 0 is the seed.
 - **gen 6** — Giuseppe Frigeni improved `config`: bits per byte 1.8609 → 1.8456 (−0.0153)
 - **gen 7** — anonymous improved `config + tokenizer + ffn + optimizer`: bits per byte 1.8456 → 1.8284 (−0.0172)
 - **gen 8** — Nick Grebe improved `architecture + optimizer + lr_schedule`: bits per byte 1.8284 → 1.8173 (−0.0111)
+- **gen 9** — Debadyuti Mukherjee improved `config`: bits per byte 1.8173 → 1.7528 (−0.0645)

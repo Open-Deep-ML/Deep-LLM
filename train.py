@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 8.
+"""The crowd-trained tiny LLM — generation 9.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,7 +65,7 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v7, by anonymous) ---
+# --- slot: config (v9, by Debadyuti Mukherjee) ---
 def configure_model(cfg):
     """The model's shape and training hyperparameters (vanilla nanoGPT).
 
@@ -73,8 +73,8 @@ def configure_model(cfg):
     or wider means fewer steps before the wall clock; longer context means
     slower steps but more to attend to. The param cap is the hard ceiling.
     """
-    cfg.n_layer = 6
-    cfg.n_head = 6
+    cfg.n_layer = 4
+    cfg.n_head = 4
     cfg.n_embd = 384
     cfg.block_size = 128      # context length (max 1024)
     cfg.dropout = 0.0
