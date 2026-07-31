@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 9.
+"""The crowd-trained tiny LLM — generation 10.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -82,7 +82,7 @@ def configure_model(cfg):
     cfg.learning_rate = 1e-3
     return cfg
 
-# --- slot: tokenizer (v7, by anonymous) ---
+# --- slot: tokenizer (v10, by Erhem Bayar) ---
 def build_tokenizer(train_bytes):
     """Classic BPE trained on a distributed 1 MB corpus sample.
 
@@ -95,7 +95,7 @@ def build_tokenizer(train_bytes):
     """
     import numpy as np
 
-    NUM_MERGES = 512
+    NUM_MERGES = 1536   # was 512 — bigger vocab covers more bytes/token
     SAMPLE_SIZE = 1_000_000
     NUM_CHUNKS = 64
 

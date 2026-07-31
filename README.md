@@ -17,9 +17,9 @@ a commit. The git history *is* the research log.
 
 | | |
 |---|---|
-| **Generation** | 9 |
-| **bits per byte** | **1.7528** (hidden test set, lower is better) |
-| **Experiments tried** | 39 (9 merged) |
+| **Generation** | 10 |
+| **bits per byte** | **1.7348** (hidden test set, lower is better) |
+| **Experiments tried** | 40 (10 merged) |
 | **Training budget** | 2000 steps / 240s on a T4, ≤15M params |
 | **Data** | FineWeb-Edu (educational web text), scored in bits per byte |
 
@@ -39,7 +39,7 @@ and reports held-out bits per byte.
 | Slot | Version | Author |
 |---|---|---|
 | `config` | v9 | Debadyuti Mukherjee |
-| `tokenizer` | v7 | anonymous |
+| `tokenizer` | v10 | Erhem Bayar |
 | `embeddings` | v4 | Shubh Goyal |
 | `attention` | v4 | Shubh Goyal |
 | `ffn` | v7 | anonymous |

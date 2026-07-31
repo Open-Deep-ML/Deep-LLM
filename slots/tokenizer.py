@@ -1,4 +1,4 @@
-# Slot: tokenizer (v7, by anonymous)
+# Slot: tokenizer (v10, by Erhem Bayar)
 
 def build_tokenizer(train_bytes):
     """Classic BPE trained on a distributed 1 MB corpus sample.
@@ -12,7 +12,7 @@ def build_tokenizer(train_bytes):
     """
     import numpy as np
 
-    NUM_MERGES = 512
+    NUM_MERGES = 1536   # was 512 — bigger vocab covers more bytes/token
     SAMPLE_SIZE = 1_000_000
     NUM_CHUNKS = 64
 
