@@ -1,4 +1,4 @@
-# Slot: ffn (v7, by anonymous)
+# Slot: ffn (v11, by noah lin)
 
 class FFN(nn.Module):
     """Parameter-efficient SwiGLU with a fused gate/up projection."""
@@ -25,4 +25,4 @@ class FFN(nn.Module):
     def forward(self, x):
         gate, up = self.gate_up(x).chunk(2, dim=-1)
         x = F.silu(gate) * up
-        return self.drop(self.down(x))
+        return self.down(x)

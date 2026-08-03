@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 10.
+"""The crowd-trained tiny LLM — generation 11.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,24 +65,19 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v9, by Debadyuti Mukherjee) ---
+# --- slot: config (v11, by noah lin) ---
 def configure_model(cfg):
-    """The model's shape and training hyperparameters (vanilla nanoGPT).
-
-    Everything here is a tradeoff against the fixed compute budget: deeper
-    or wider means fewer steps before the wall clock; longer context means
-    slower steps but more to attend to. The param cap is the hard ceiling.
-    """
-    cfg.n_layer = 4
+    """更小模型，换更多 tokens。"""
+    cfg.n_layer = 3          # 4 → 3
     cfg.n_head = 4
-    cfg.n_embd = 384
-    cfg.block_size = 128      # context length (max 1024)
+    cfg.n_embd = 256         # 384 → 256（最关键的降参）
+    cfg.block_size = 128
     cfg.dropout = 0.0
-    cfg.batch_size = 64
-    cfg.learning_rate = 1e-3
+    cfg.batch_size = 120     # 模型小了，可以稍微加大 batch 再榨一点 tokens
+    cfg.learning_rate = 1.2e-3  # 小模型通常可以稍微抬高一点 base lr
     return cfg
 
-# --- slot: tokenizer (v10, by Erhem Bayar) ---
+# --- slot: tokenizer (v11, by noah lin) ---
 def build_tokenizer(train_bytes):
     """Classic BPE trained on a distributed 1 MB corpus sample.
 
@@ -95,7 +90,7 @@ def build_tokenizer(train_bytes):
     """
     import numpy as np
 
-    NUM_MERGES = 1536   # was 512 — bigger vocab covers more bytes/token
+    NUM_MERGES = 1536
     SAMPLE_SIZE = 1_000_000
     NUM_CHUNKS = 64
 
@@ -263,7 +258,7 @@ class Attention(nn.Module):
         y = y.transpose(1, 2).contiguous().view(B, T, C)
         return self.proj(y)
 
-# --- slot: ffn (v7, by anonymous) ---
+# --- slot: ffn (v11, by noah lin) ---
 class FFN(nn.Module):
     """Parameter-efficient SwiGLU with a fused gate/up projection."""
 
@@ -289,7 +284,7 @@ class FFN(nn.Module):
     def forward(self, x):
         gate, up = self.gate_up(x).chunk(2, dim=-1)
         x = F.silu(gate) * up
-        return self.drop(self.down(x))
+        return self.down(x)
 
 # --- slot: norm (v4, by Shubh Goyal) ---
 class Norm(nn.Module):
@@ -422,28 +417,25 @@ def configure_optimizer(model, cfg):
         **optimizer_args,
     )
 
-# --- slot: lr_schedule (v8, by Nick Grebe) ---
+# --- slot: lr_schedule (v11, by noah lin) ---
 def get_lr(step, cfg):
-    """3% linear warmup, then cosine decay to 10% of the base learning rate."""
-    max_steps = max(1,int(cfg.max_steps),)
-
-    warmup_steps = max(1,
-        min(200,
-            int(0.03 * max_steps),
-        ),
-    )
+    max_steps = max(1, int(cfg.max_steps))
+    warmup_steps = 60
+    cooldown_steps = 240
+    min_lr_ratio = 0.1
 
     if step < warmup_steps:
-        return (cfg.learning_rate* (step + 1)/ warmup_steps
-        )
+        return cfg.learning_rate * (step + 1) / warmup_steps
 
-    progress = (step - warmup_steps) / max(1,max_steps - warmup_steps - 1,)
+    cooldown_start = max_steps - cooldown_steps
+    if step < cooldown_start:
+        return cfg.learning_rate
 
-    progress = min(1.0,max(0.0, progress),)
-
+    progress = (step - cooldown_start) / max(1, cooldown_steps - 1)
     cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
-
-    return cfg.learning_rate * (0.1 + 0.9 * cosine)
+    return cfg.learning_rate * (
+        min_lr_ratio + (1.0 - min_lr_ratio) * cosine
+    )
 
 # --- slot: train_step (v0, by Deep-ML) ---
 def train_step(model, batch, optimizer, step):

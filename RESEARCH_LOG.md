@@ -12,3 +12,4 @@ Every merged experiment, oldest first. Generation 0 is the seed.
 - **gen 8** — Nick Grebe improved `architecture + optimizer + lr_schedule`: bits per byte 1.8284 → 1.8173 (−0.0111)
 - **gen 9** — Debadyuti Mukherjee improved `config`: bits per byte 1.8173 → 1.7528 (−0.0645)
 - **gen 10** — Erhem Bayar improved `tokenizer`: bits per byte 1.7528 → 1.7348 (−0.0180)
+- **gen 11** — noah lin improved `config + tokenizer + ffn + lr_schedule`: bits per byte 1.7348 → 1.7120 (−0.0228)
