@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 11.
+"""The crowd-trained tiny LLM — generation 12.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,16 +65,15 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v11, by noah lin) ---
+# --- slot: config (v12, by Đức Dũng Hoàng) ---
 def configure_model(cfg):
-    """更小模型，换更多 tokens。"""
-    cfg.n_layer = 3          # 4 → 3
+    cfg.n_layer = 3
     cfg.n_head = 4
-    cfg.n_embd = 256         # 384 → 256（最关键的降参）
-    cfg.block_size = 128
+    cfg.n_embd = 256
+    cfg.block_size = 256
     cfg.dropout = 0.0
-    cfg.batch_size = 120     # 模型小了，可以稍微加大 batch 再榨一点 tokens
-    cfg.learning_rate = 1.2e-3  # 小模型通常可以稍微抬高一点 base lr
+    cfg.batch_size = 60
+    cfg.learning_rate = 1.2e-3
     return cfg
 
 # --- slot: tokenizer (v11, by noah lin) ---
@@ -417,11 +416,11 @@ def configure_optimizer(model, cfg):
         **optimizer_args,
     )
 
-# --- slot: lr_schedule (v11, by noah lin) ---
+# --- slot: lr_schedule (v12, by Đức Dũng Hoàng) ---
 def get_lr(step, cfg):
     max_steps = max(1, int(cfg.max_steps))
-    warmup_steps = 60
-    cooldown_steps = 240
+    warmup_steps = max(1, round(0.03 * max_steps))
+    cooldown_steps = max(1, round(0.12 * max_steps))
     min_lr_ratio = 0.1
 
     if step < warmup_steps:
