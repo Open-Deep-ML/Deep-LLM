@@ -17,9 +17,9 @@ a commit. The git history *is* the research log.
 
 | | |
 |---|---|
-| **Generation** | 12 |
-| **bits per byte** | **1.6817** (hidden test set, lower is better) |
-| **Experiments tried** | 65 (12 merged) |
+| **Generation** | 13 |
+| **bits per byte** | **1.6249** (hidden test set, lower is better) |
+| **Experiments tried** | 71 (13 merged) |
 | **Training budget** | 2000 steps / 240s on a T4, ≤15M params |
 | **Data** | FineWeb-Edu (educational web text), scored in bits per byte |
 
@@ -38,7 +38,7 @@ and reports held-out bits per byte.
 
 | Slot | Version | Author |
 |---|---|---|
-| `config` | v12 | Đức Dũng Hoàng |
+| `config` | v13 | Đức Dũng Hoàng |
 | `tokenizer` | v11 | noah lin |
 | `embeddings` | v4 | Shubh Goyal |
 | `attention` | v4 | Shubh Goyal |
@@ -47,7 +47,7 @@ and reports held-out bits per byte.
 | `architecture` | v8 | Nick Grebe |
 | `optimizer` | v8 | Nick Grebe |
 | `lr_schedule` | v12 | Đức Dũng Hoàng |
-| `train_step` | v0 | Deep-ML |
+| `train_step` | v13 | Đức Dũng Hoàng |
 
 Beat the model and your name replaces one of these rows.
 

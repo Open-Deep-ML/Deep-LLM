@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 12.
+"""The crowd-trained tiny LLM — generation 13.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,14 +65,14 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v12, by Đức Dũng Hoàng) ---
+# --- slot: config (v13, by Đức Dũng Hoàng) ---
 def configure_model(cfg):
     cfg.n_layer = 3
     cfg.n_head = 4
     cfg.n_embd = 256
     cfg.block_size = 256
     cfg.dropout = 0.0
-    cfg.batch_size = 60
+    cfg.batch_size = 120
     cfg.learning_rate = 1.2e-3
     return cfg
 
@@ -436,16 +436,26 @@ def get_lr(step, cfg):
         min_lr_ratio + (1.0 - min_lr_ratio) * cosine
     )
 
-# --- slot: train_step (v0, by Deep-ML) ---
+# --- slot: train_step (v13, by Đức Dũng Hoàng) ---
 def train_step(model, batch, optimizer, step):
-    """Plain cross-entropy step with grad clipping (vanilla nanoGPT)."""
+    """Mixed-precision step: fp16 forward/backward on tensor cores, fp32 master weights."""
+    use_amp = next(model.parameters()).device.type == "cuda"
+
+    if not hasattr(train_step, "scaler"):
+        train_step.scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+    scaler = train_step.scaler
+
     x, y = batch
-    logits = model(x)
-    loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
+    with torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
+        logits = model(x)
+        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
+
     optimizer.zero_grad(set_to_none=True)
-    loss.backward()
+    scaler.scale(loss).backward()
+    scaler.unscale_(optimizer)
     torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-    optimizer.step()
+    scaler.step(optimizer)
+    scaler.update()
     return loss.item()
 
 
