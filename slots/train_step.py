@@ -1,16 +1,22 @@
-# Slot: train_step (v13, by Đức Dũng Hoàng)
+# Slot: train_step (v14, by Đức Dũng Hoàng)
 
 def train_step(model, batch, optimizer, step):
-    """Mixed-precision step: fp16 forward/backward on tensor cores, fp32 master weights."""
+    """Mixed-precision step with a compiled forward.
+
+    unscale_ must run before clip_grad_norm_: the gradients are still
+    multiplied by the GradScaler's factor until then, so clipping would
+    cut against a scaled norm. fp16 (not bf16) because the T4 is Turing.
+    """
     use_amp = next(model.parameters()).device.type == "cuda"
 
     if not hasattr(train_step, "scaler"):
         train_step.scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
-    scaler = train_step.scaler
+        train_step.fwd = torch.compile(model) if use_amp else model
+    scaler, fwd = train_step.scaler, train_step.fwd
 
     x, y = batch
     with torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
-        logits = model(x)
+        logits = fwd(x)
         loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
 
     optimizer.zero_grad(set_to_none=True)

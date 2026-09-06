@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 13.
+"""The crowd-trained tiny LLM — generation 14.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,14 +65,14 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v13, by Đức Dũng Hoàng) ---
+# --- slot: config (v14, by Đức Dũng Hoàng) ---
 def configure_model(cfg):
     cfg.n_layer = 3
     cfg.n_head = 4
     cfg.n_embd = 256
     cfg.block_size = 256
     cfg.dropout = 0.0
-    cfg.batch_size = 120
+    cfg.batch_size = 180
     cfg.learning_rate = 1.2e-3
     return cfg
 
@@ -436,18 +436,24 @@ def get_lr(step, cfg):
         min_lr_ratio + (1.0 - min_lr_ratio) * cosine
     )
 
-# --- slot: train_step (v13, by Đức Dũng Hoàng) ---
+# --- slot: train_step (v14, by Đức Dũng Hoàng) ---
 def train_step(model, batch, optimizer, step):
-    """Mixed-precision step: fp16 forward/backward on tensor cores, fp32 master weights."""
+    """Mixed-precision step with a compiled forward.
+
+    unscale_ must run before clip_grad_norm_: the gradients are still
+    multiplied by the GradScaler's factor until then, so clipping would
+    cut against a scaled norm. fp16 (not bf16) because the T4 is Turing.
+    """
     use_amp = next(model.parameters()).device.type == "cuda"
 
     if not hasattr(train_step, "scaler"):
         train_step.scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
-    scaler = train_step.scaler
+        train_step.fwd = torch.compile(model) if use_amp else model
+    scaler, fwd = train_step.scaler, train_step.fwd
 
     x, y = batch
     with torch.autocast("cuda", dtype=torch.float16, enabled=use_amp):
-        logits = model(x)
+        logits = fwd(x)
         loss = F.cross_entropy(logits.view(-1, logits.size(-1)), y.view(-1))
 
     optimizer.zero_grad(set_to_none=True)

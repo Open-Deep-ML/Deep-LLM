@@ -15,3 +15,4 @@ Every merged experiment, oldest first. Generation 0 is the seed.
 - **gen 11** — noah lin improved `config + tokenizer + ffn + lr_schedule`: bits per byte 1.7348 → 1.7120 (−0.0228)
 - **gen 12** — Đức Dũng Hoàng improved `config + lr_schedule`: bits per byte 1.7120 → 1.6817 (−0.0303)
 - **gen 13** — Đức Dũng Hoàng improved `config + train_step`: bits per byte 1.6817 → 1.6249 (−0.0568)
+- **gen 14** — Đức Dũng Hoàng improved `config + train_step`: bits per byte 1.6249 → 1.6118 (−0.0131)
