@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The crowd-trained tiny LLM — generation 14.
+"""The crowd-trained tiny LLM — generation 15.
 
 Auto-generated from the canonical slots at deep-ml.com/research/tiny-llm.
 Trains from scratch on any UTF-8 text file and reports bits per byte on a
@@ -65,15 +65,15 @@ def _rh_token_byte_lens(merges):
     return np.asarray(lens, dtype=np.int64)
 
 
-# --- slot: config (v14, by Đức Dũng Hoàng) ---
+# --- slot: config (v15, by Nguyễn Đức Bảo Lâm) ---
 def configure_model(cfg):
-    cfg.n_layer = 3
+    cfg.n_layer = 4
     cfg.n_head = 4
-    cfg.n_embd = 256
-    cfg.block_size = 256
-    cfg.dropout = 0.0
-    cfg.batch_size = 180
-    cfg.learning_rate = 1.2e-3
+    cfg.n_embd = 512
+    cfg.block_size = 512
+    cfg.dropout = 0.25
+    cfg.batch_size = 32
+    cfg.learning_rate = 1.5e-3
     return cfg
 
 # --- slot: tokenizer (v11, by noah lin) ---
