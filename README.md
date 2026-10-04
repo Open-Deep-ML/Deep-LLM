@@ -17,9 +17,9 @@ a commit. The git history *is* the research log.
 
 | | |
 |---|---|
-| **Generation** | 16 |
-| **bits per byte** | **1.5602** (hidden test set, lower is better) |
-| **Experiments tried** | 103 (16 merged) |
+| **Generation** | 17 |
+| **bits per byte** | **1.5472** (hidden test set, lower is better) |
+| **Experiments tried** | 112 (17 merged) |
 | **Training budget** | 2000 steps / 240s on a T4, ≤15M params |
 | **Data** | FineWeb-Edu (educational web text), scored in bits per byte |
 
@@ -38,7 +38,7 @@ and reports held-out bits per byte.
 
 | Slot | Version | Author |
 |---|---|---|
-| `config` | v16 | Đức Dũng Hoàng |
+| `config` | v17 | anonymous |
 | `tokenizer` | v11 | noah lin |
 | `embeddings` | v4 | Shubh Goyal |
 | `attention` | v4 | Shubh Goyal |
